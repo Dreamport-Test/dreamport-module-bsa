@@ -1,6 +1,6 @@
 # Dreamport module: Bethesda .bsa
 
-A fork of [Dreamport-Test/dreamport-module](https://github.com/Dreamport-Test/dreamport-module) that
+A module, made from [Dreamport-Test/dreamport-module](https://github.com/Dreamport-Test/dreamport-module), that
 offers the reader `bsa` (every file of a Bethesda `.bsa` archive, versions 103, 104 and 105, and where its
 bytes lie). It declares no decoder: the files it lists as compressed are decoded by the host's own `zlib` and
 `lz4`, or by a decoder module the same pattern names. It is a Rust translation of the listing and in-place
