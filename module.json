@@ -1,1 +1,1 @@
-{ "abi": 2, "decoders": ["example"] }
+{ "abi": 2, "readers": ["bsa"] }

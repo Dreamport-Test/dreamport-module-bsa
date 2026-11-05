@@ -1,14 +1,23 @@
-//! A Dreamport module: bytes in, bytes out. See README.md for the ABI. The example offers a decoder and no reader,
-//! so it imports nothing; `host` is what a reader uses to read its container.
+//! Somnium's Bethesda .bsa reader as a WebAssembly module (ABI v2): the reader `bsa`, versions 103, 104 and 105.
+//! A translation of the client's `Unpackers/Bsa/*.cs` listing and in-place locating. It decodes nothing: the host,
+//! or a decoder module, decodes what it lists. Its only import is `dp_host.read`, the container being listed.
 
-pub mod host;
+mod bsa;
+mod host;
+mod lines;
 
 use std::alloc::{alloc, dealloc, Layout};
+use std::cell::UnsafeCell;
 
 const ABI_VERSION: u32 = 2;
 const ALIGN: usize = 16;
-const CORRUPT: i64 = -1;
-const BAD_ARGUMENTS: i64 = -5;
+
+struct State(UnsafeCell<Vec<u8>>);
+
+// The module is single-threaded: one instance, one call at a time.
+unsafe impl Sync for State {}
+
+static LISTING: State = State(UnsafeCell::new(Vec::new()));
 
 #[no_mangle]
 pub extern "C" fn dp_abi() -> u32 {
@@ -37,24 +46,22 @@ pub extern "C" fn dp_free(ptr: u32, len: u32) {
 }
 
 #[no_mangle]
-pub extern "C" fn dp_decode(in_ptr: u32, in_len: u32, out_ptr: u32, out_len: u32) -> i64 {
-    if (in_ptr == 0 && in_len != 0) || (out_ptr == 0 && out_len != 0) || out_len > i32::MAX as u32 {
-        return BAD_ARGUMENTS;
+pub extern "C" fn dp_list(container_len: i64) -> i64 {
+    let listing = unsafe { &mut *LISTING.0.get() };
+    *listing = Vec::new();
+    if container_len < 0 {
+        return host::BAD_ARGUMENTS;
     }
-    let input: &[u8] = if in_len == 0 { &[] } else { unsafe { std::slice::from_raw_parts(in_ptr as usize as *const u8, in_len as usize) } };
-    let output: &mut [u8] = if out_len == 0 { &mut [] } else { unsafe { std::slice::from_raw_parts_mut(out_ptr as usize as *mut u8, out_len as usize) } };
-    let wrote = decode(input, output);
-    if wrote < 0 {
-        output.fill(0);
+    match lines::list_bsa(&host::Container::new(container_len)) {
+        Ok(made) => {
+            *listing = made;
+            listing.len() as i64
+        }
+        Err(refused) => refused.0,
     }
-    wrote
 }
 
-/// The example decoder: an input exactly as long as the output is copied; anything else is refused.
-fn decode(input: &[u8], output: &mut [u8]) -> i64 {
-    if input.len() != output.len() {
-        return CORRUPT;
-    }
-    output.copy_from_slice(input);
-    output.len() as i64
+#[no_mangle]
+pub extern "C" fn dp_output() -> u32 {
+    unsafe { (*LISTING.0.get()).as_ptr() as usize as u32 }
 }

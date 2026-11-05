@@ -1,4 +1,14 @@
-# Dreamport module (base)
+# Dreamport module: Bethesda .bsa
+
+A fork of [Dreamport-Test/dreamport-module](https://github.com/Dreamport-Test/dreamport-module) that
+offers the reader `bsa` (every file of a Bethesda `.bsa` archive, versions 103, 104 and 105, and where its
+bytes lie). It declares no decoder: the files it lists as compressed are decoded by the host's own `zlib` and
+`lz4`, or by a decoder module the same pattern names. It is a Rust translation of the listing and in-place
+locating of Somnium's C# reader (`Unpackers/Bsa`), checked file by file against it. It is not Bethesda's code.
+
+What follows is the base's description.
+
+---
 
 A **Dreamport module** is code a Dreamport world can ask Somnium to use when it reads a game's files. It is
 a WebAssembly module that offers **decoders** (bytes in, bytes out), **readers** (it lists the entries of
@@ -120,8 +130,22 @@ cargo build --release --target wasm32-unknown-unknown
 The result is `target/wasm32-unknown-unknown/release/dreamport_module.wasm`. Use no crate that needs an
 import (no `wasm-bindgen`, no WASI).
 
-## The example decoder
 
-`src/lib.rs` offers the decoder `example`: it accepts an input exactly as long as the output and copies it.
-Replace `decode` with your own decoder. The example declares no reader; a reader adds `dp_list` and
-`dp_output` and reads its container through `host::Container`.
+## This fork's reader
+
+`src/lib.rs` exports the ABI and `src/lines.rs` writes the listing; `src/bsa/` holds one Rust file per file of
+the C# reader it translates (the header, the folder and file records with the names, a file's embedded name and
+declared size, and locating its bytes). The archive is read only through `src/host.rs`, the one import.
+
+The listing's archive line proves the archive from its start to the end of its file names (`indexAt` 0,
+`indexLength` the names' end) and has no mount (`""`). Each file is listed as the archive names it, `folder/name`
+with `/` for the archive's `\`, one character per byte. A stored file is one range (`method` 0, `decoder`
+`stored`); a compressed one is one block (`method` 1, `decoder` `zlib` for versions 103 and 104, `lz4` for 105,
+`blockSize` its declared size, `blocks` its compressed length). A file whose embedded name is not its own, whose
+bytes lie outside the archive, or whose declared size cannot be one block is a problem line. An archive that is
+not a BSA, or whose tables do not add up, is refused (-1); another version, an Xbox 360 archive or one that keeps
+no names is refused as not supported (-2). Which files a world takes, and the limits, stay in the host.
+
+Measured 2026-11-05 in Wasmtime 48 from .NET 10: the listing equals the C# reader's, field by field, on every
+`.bsa` of a shipped Bethesda game (the 23 archives of Skyrim Special Edition, 172,961 files) and on the C# suite's
+own archives of versions 103, 104 and 105, each refusal it checks, and damaged copies of them.
