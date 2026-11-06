@@ -1,4 +1,4 @@
-//! Somnium's Bethesda .bsa reader as a WebAssembly module (ABI v3): the reader `bsa`, versions 103, 104 and 105.
+//! Somnium's Bethesda .bsa reader as a WebAssembly module (ABI v4): the reader `bsa`, versions 103, 104 and 105.
 //! A translation of the client's `Unpackers/Bsa/*.cs` listing and in-place locating. It decodes nothing: the host,
 //! or a decoder module, decodes what it lists. Its only import is `dp_host.read`, the container being listed.
 
@@ -9,7 +9,8 @@ mod lines;
 use std::alloc::{alloc, dealloc, Layout};
 use std::cell::UnsafeCell;
 
-const ABI_VERSION: u32 = 3;
+const ABI_VERSION: u32 = 4;
+const DESCRIPTION: &[u8] = br#"{"readers":["bsa"],"decoders":[]}"#;
 const ALIGN: usize = 16;
 
 struct State(UnsafeCell<Vec<u8>>);
@@ -64,4 +65,12 @@ pub extern "C" fn dp_list(container_len: i64) -> i64 {
 #[no_mangle]
 pub extern "C" fn dp_output() -> u32 {
     unsafe { (*LISTING.0.get()).as_ptr() as usize as u32 }
+}
+
+/// What this module answers, in its own words, at dp_output until the next dp_list or dp_describe.
+#[no_mangle]
+pub extern "C" fn dp_describe() -> i64 {
+    let listing = unsafe { &mut *LISTING.0.get() };
+    *listing = DESCRIPTION.to_vec();
+    listing.len() as i64
 }
