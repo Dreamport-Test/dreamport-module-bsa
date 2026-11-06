@@ -1,4 +1,4 @@
-//! Somnium's Bethesda .bsa reader as a WebAssembly module (ABI v2): the reader `bsa`, versions 103, 104 and 105.
+//! Somnium's Bethesda .bsa reader as a WebAssembly module (ABI v3): the reader `bsa`, versions 103, 104 and 105.
 //! A translation of the client's `Unpackers/Bsa/*.cs` listing and in-place locating. It decodes nothing: the host,
 //! or a decoder module, decodes what it lists. Its only import is `dp_host.read`, the container being listed.
 
@@ -9,7 +9,7 @@ mod lines;
 use std::alloc::{alloc, dealloc, Layout};
 use std::cell::UnsafeCell;
 
-const ABI_VERSION: u32 = 2;
+const ABI_VERSION: u32 = 3;
 const ALIGN: usize = 16;
 
 struct State(UnsafeCell<Vec<u8>>);
